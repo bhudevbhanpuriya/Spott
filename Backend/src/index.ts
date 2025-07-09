@@ -79,3 +79,41 @@ app.post('/api/v1/signup', async function (req : Request, res : Response) {
     })
 
 })
+
+
+
+//-------------------Sign-IN---------------------------------------------------
+
+
+app.put('/api/v1/signin',async (req : Request, res : Response) => {
+    const { email , password } = req.body;
+    const user = await userModel.findOne({
+        email : email,
+    })
+
+    if(!user){
+        res.status(403).json({
+            msg : "User doesn't exist or wrong credentials"
+        })
+        return
+    }
+
+    const passwordMatch : boolean = await bcrypt.compare(password , user.password);
+    if(passwordMatch){
+        const token = JWT.sign({
+            id : user._id
+        },JWT_USER_PASSWORD);
+
+        res.status(200).json({
+            msg : "Signed-up Success",
+            token : token
+        })
+        return
+    }
+    else{
+        res.status(403).json({
+            msg : "Invail Credentials"
+        })
+    }
+
+})
