@@ -75,7 +75,7 @@ app.post('/api/v1/signup', async function (req : Request, res : Response) {
     }
 
     res.status(200).json({
-        msg : "Signed up Success"
+        msg : "Signed up Success",
     })
 
 })
