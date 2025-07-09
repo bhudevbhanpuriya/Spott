@@ -1,15 +1,20 @@
 {
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^17.1.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.2",
+    "node": "^22.17.0",
     "zod": "^3.25.76"
   },
   "name": "backend",
   "version": "1.0.0",
   "main": "index.js",
   "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/mongoose": "^5.11.97",
+    "@types/node": "^24.0.12",
     "typescript": "^5.8.3"
   },
   "scripts": {
