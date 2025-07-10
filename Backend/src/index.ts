@@ -22,7 +22,7 @@ const MONGO_URL : string = process.env.MONGO_URL || "undefined";
 
 const {userModel,contentModel,linkModel} = require('./db')
 // const {contentModel} = require('./db')
-import { random } from "./utlis";
+import { random } from "./utils";
 
 //bcrypt
 const bcrypt = require("bcrypt")
