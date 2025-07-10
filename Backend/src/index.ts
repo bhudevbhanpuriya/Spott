@@ -17,11 +17,12 @@ const JWT_USER_PASSWORD = process.env.JWT_USER_PASSWORD
 
 //mongoose code
 import mongoose from "mongoose"
+import { userMiddlerware } from "./middleware";
 const MONGO_URL : string = process.env.MONGO_URL || "undefined";
 
-const {userModel} = require('./db')
+const {userModel,contentModel,linkModel} = require('./db')
 // const {contentModel} = require('./db')
-
+import { random } from "./utlis";
 
 //bcrypt
 const bcrypt = require("bcrypt")
@@ -75,11 +76,10 @@ app.post('/api/v1/signup', async function (req : Request, res : Response) {
     }
 
     res.status(200).json({
-        msg : "Signed up Success",
+        msg : "Signed up Success"
     })
 
 })
-
 
 
 //-------------------Sign-IN---------------------------------------------------
@@ -117,3 +117,145 @@ app.put('/api/v1/signin',async (req : Request, res : Response) => {
     }
 
 })
+
+
+//-------------------Add content---------------------------------------------------
+
+
+app.post('/api/v1/content',userMiddlerware,async (req:CustomRequest, res:Response) => {
+    const { link, type, title } = req.body;
+    // Create a new content entry linked to the logged-in user.
+    await contentModel.create({
+        link,
+        // type,
+        title,
+        userId: req.userId, // userId is added by the middleware.
+        // tags: [] // Initialize tags as an empty array.
+    });
+
+    res.json({ message: "Content added" }); 
+})
+
+//-------------------Get user content---------------------------------------------------
+
+
+app.get("/api/v1/content", userMiddlerware, async (req, res) => {
+    //@ts-ignore
+    const userId = req.userId;  // User ID is fetched from middleware
+    // Fetch all content associated with the user ID and populate username
+    // The `populate` function is used to include additional details from the referenced `userId`.
+    // For example, it will fetch the username linked to the userId.
+    // Since we specified "username", only the username will be included in the result, 
+    // and other details like password won’t be fetched.
+    const content = await contentModel.find({ userId: userId }).populate("userId", "username");
+    res.json(content);  // Send the content as response
+});
+
+//-------------------Delete---------------------------------------------------------------
+
+app.delete('/api/v1/content', userMiddlerware, async (req: CustomRequest, res: Response) => {
+  try {
+    const contentId = req.body.contentId;
+
+    if (!contentId || !mongoose.Types.ObjectId.isValid(contentId)) {
+      res.status(400).json({ msg: "Invalid or missing contentId" });
+      return
+    }
+
+    const result = await contentModel.deleteOne({
+      _id: contentId,
+      userId: req.userId
+    });
+
+    if (result.deletedCount === 0) {
+      res.status(404).json({ msg: "No content found or unauthorized" });
+      return
+    }
+
+    res.status(200).json({ msg: "Deleted successfully" });
+
+  } catch (error) {
+    console.error("Error deleting content:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+//-------------------Share content--------------------------------------------------
+app.post('/api/v1/brain/share',userMiddlerware,async (req : CustomRequest, res:Response) => {
+    const {share} = req.body
+
+    if(share){
+        const existingLink = await linkModel.findOne({userId : req.userId});
+        if(existingLink){
+            res.json({
+                hash : existingLink.hash
+            })
+            return
+        }
+        
+        //Generate a shareable link
+        const hash = random(20);
+        await linkModel.create({
+            userId : req.userId,
+            hash
+        })
+    }
+    // else logic is to delete the shareable link
+    else{
+        await linkModel.deleteOne({
+            userId : req.userId
+        })
+        res.json({
+            msg : "link deactivated"
+        })
+    }
+})
+
+app.get('/api/v1/brain/:shareLink',async (req : CustomRequest, res:Response) => {
+    const hash = req.params.shareLink;
+    const link = await linkModel.findOne({hash});
+    if(!link){
+        res.status(404).json({
+            msg : " If the share link is invalid or sharing is disabled"
+        })
+        return
+    }
+    const content = await contentModel.find({userId : link.userId});
+    const user = await userModel.findOne({_id : link.userId});
+
+    if(!user){
+        res.status(404).json({
+            msg : 'User doesnt found'
+        })
+        return
+    }
+
+    res.status(200).json({
+        username : user.firstName,
+        content
+    })
+})
+
+
+//-------------------Main-Function---------------------------------------------------
+
+
+async function main() : Promise<void> {
+    try {
+        await mongoose.connect(MONGO_URL);
+        console.log("connected to database");
+        
+        app.listen(3000, () => {
+            console.log('Server is running on port 3000');
+        });
+    }
+    catch(e) {
+        console.error("Failed to connect to database",e);
+        
+    }
+}
+
+main();
+
+
+
